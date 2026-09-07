@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --azul: #1f4e79;
+  --azul-med: #2e75b6;
+  --azul-clr: #bdd7ee;
+  --verde: #375623;
+  --verde-clr: #e2efda;
+  --rojo: #c00000;
+  --rojo-clr: #fce4d6;
+  --amarillo: #fff2cc;
+  --naranja: #843c0c;
+  --gris: #f4f6f8;
+  --borde: #e0e0e0;
+}
+
+html,
+body {
+  background: var(--gris);
+  color: #1a1a2e;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-[var(--borde)] bg-white overflow-hidden;
+  }
+  .card-header {
+    @apply bg-[var(--azul)] text-white px-4 py-2.5 text-[13px] font-bold flex items-center justify-between;
+  }
+  .stat-card {
+    @apply rounded-lg border border-[var(--borde)] bg-white px-3.5 py-3;
+  }
+  .stat-label {
+    @apply text-[11px] text-neutral-500 font-medium mb-1;
+  }
+  .stat-value {
+    @apply text-xl font-extrabold leading-none text-[var(--azul)];
+  }
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-semibold border border-transparent transition-colors disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-[var(--azul)] text-white hover:bg-[var(--azul-med)];
+  }
+  .btn-ghost {
+    @apply bg-transparent border-[var(--borde)] text-neutral-700 hover:bg-neutral-100;
+  }
+  .badge {
+    @apply inline-block rounded-full px-2 py-0.5 text-[10px] font-bold leading-none;
+  }
+  .badge-verde {
+    @apply bg-[var(--verde-clr)] text-[var(--verde)];
+  }
+  .badge-rojo {
+    @apply bg-[var(--rojo-clr)] text-[var(--rojo)];
+  }
+  .badge-gris {
+    @apply bg-neutral-100 text-neutral-500;
+  }
+  .badge-azul {
+    @apply bg-[var(--azul-clr)] text-[var(--azul)];
+  }
+  .badge-amarillo {
+    @apply bg-[var(--amarillo)] text-[#856404];
+  }
+  .input {
+    @apply w-full rounded-md border border-[var(--borde)] bg-white px-2.5 py-2 text-[13px] outline-none focus:border-[#2E75B6] focus:ring-2 focus:ring-[#2E75B6]/20;
+  }
+  .label {
+    @apply text-xs font-semibold text-neutral-600;
+  }
+  .table-base {
+    @apply w-full border-collapse text-[13px];
+  }
+  .table-base thead th {
+    @apply bg-[var(--azul-clr)] text-[var(--azul)] font-bold px-3 py-2 text-left text-[11px] whitespace-nowrap border-b-2 border-[var(--azul-med)];
+  }
+  .table-base tbody tr {
+    @apply border-b border-neutral-100 hover:bg-[#f5faff];
+  }
+  .table-base td {
+    @apply px-3 py-2 align-middle;
+  }
+}
