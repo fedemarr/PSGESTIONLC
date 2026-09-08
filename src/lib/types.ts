@@ -35,6 +35,7 @@ export interface Partido {
   monto_3t: number | null;
   jugado: boolean;
   obs: string;
+  grupo_turno: Grupo3T | null;
   temporada: number;
   created_at: string;
 }

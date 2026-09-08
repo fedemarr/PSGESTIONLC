@@ -236,15 +236,25 @@ function PartidoModal({ partido, onClose }: { partido: Partido | null; onClose: 
             <input name="rival" required defaultValue={partido?.rival} className="input" placeholder="Banco Hipotecario" />
           </Field>
           {tipo === "Local" && (
-            <Field label="Monto 3T ($)">
-              <input
-                name="monto_3t"
-                type="number"
-                defaultValue={partido?.monto_3t ?? ""}
-                className="input"
-                placeholder="Vacío = usa el global"
-              />
-            </Field>
+            <>
+              <Field label="Monto 3T ($)">
+                <input
+                  name="monto_3t"
+                  type="number"
+                  defaultValue={partido?.monto_3t ?? ""}
+                  className="input"
+                  placeholder="Vacío = usa el global"
+                />
+              </Field>
+              <Field label="Grupo de turno (cocina)">
+                <select name="grupo_turno" defaultValue={partido?.grupo_turno ?? ""} className="input">
+                  <option value="">— Sin asignar —</option>
+                  <option value="Mc Donalds">Mc Donalds</option>
+                  <option value="Whisky">Whisky</option>
+                  <option value="Sabores express">Sabores Express</option>
+                </select>
+              </Field>
+            </>
           )}
           <Field label="Observaciones">
             <input name="obs" defaultValue={partido?.obs} className="input" />

@@ -4,19 +4,21 @@ import {
   getCajaMovimientos,
   getCobros,
   getConfig,
+  getGastos3T,
   getJugadores,
   getPartidos,
 } from "@/lib/data";
-import { deudaJugador, saldoFondo } from "@/lib/business";
+import { comprasMontoMap, deudaJugador, saldoFondo } from "@/lib/business";
 import { fmt, fmtS, fmtFecha, fechaCorta } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function InicioPage() {
-  const [jugadores, partidos, cobros, config, movs] = await Promise.all([
+  const [jugadores, partidos, cobros, gastos3t, config, movs] = await Promise.all([
     getJugadores(),
     getPartidos(),
     getCobros(),
+    getGastos3T(),
     getConfig(),
     getCajaMovimientos(),
   ]);
@@ -25,13 +27,17 @@ export default async function InicioPage() {
   const sEF = saldoFondo(movs, "Efectivo");
 
   const cobrosByJugPartido = new Map(cobros.map((c) => [`${c.jugador_id}:${c.partido_id}`, c]));
-  const partidosConCobros = new Set(cobros.map((c) => c.partido_id));
+  const comprasMap = comprasMontoMap(gastos3t);
+  const partidosConRegistros = new Set<string>([
+    ...cobros.map((c) => c.partido_id),
+    ...gastos3t.filter((g) => g.es_jugador_plantel).map((g) => g.partido_id),
+  ]);
 
   const deudores = jugadores
     .filter((j) => j.activo)
     .map((j) => ({
       j,
-      deuda: deudaJugador(j, partidos, cobrosByJugPartido, config.monto_global, partidosConCobros),
+      deuda: deudaJugador(j, partidos, cobrosByJugPartido, config.monto_global, partidosConRegistros, comprasMap),
     }))
     .filter((x) => x.deuda < 0)
     .sort((a, b) => a.deuda - b.deuda);

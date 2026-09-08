@@ -1,17 +1,30 @@
-import { Stub } from "@/components/Stub";
+import { Topbar } from "@/components/Topbar";
+import { getCobros, getConfig, getGastos3T, getJugadores, getPartidos } from "@/lib/data";
+import { CobrosGrid } from "./CobrosGrid";
 
-export default function CobrosPage() {
+export const dynamic = "force-dynamic";
+
+export default async function CobrosPage() {
+  const [jugadores, partidos, cobros, gastos3t, config] = await Promise.all([
+    getJugadores(),
+    getPartidos(),
+    getCobros(),
+    getGastos3T(),
+    getConfig(),
+  ]);
+
   return (
-    <Stub
-      title="Cobros 3T"
-      descripcion="Grilla jugador × partido local con estado de cada celda (debe / saldado / parcial / compra / ausente) y modal para registrar el pago."
-      puntos={[
-        "Tabla con columnas fijas (nombre + grupo) y scroll horizontal por partido",
-        "Modal de pago: presencia, monto, forma (MP/Efectivo), observaciones + preview",
-        "Al guardar un cobro con monto > 0 → generar movimiento automático en Caja",
-        "Reflejar las compras cargadas en Gastos 3T como celda 'compra'",
-        "Columna de deuda acumulada por jugador (ya calculada en business.ts)",
-      ]}
-    />
+    <>
+      <Topbar title="Cobros 3T" />
+      <main className="p-4 md:p-6">
+        <CobrosGrid
+          jugadores={jugadores.filter((j) => j.activo)}
+          partidos={partidos}
+          cobros={cobros}
+          gastos3t={gastos3t}
+          montoGlobal={config.monto_global}
+        />
+      </main>
+    </>
   );
 }

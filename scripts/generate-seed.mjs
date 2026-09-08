@@ -88,8 +88,14 @@ const grupoNorm = (g) => {
 
 const out = [];
 out.push("-- Generado por scripts/generate-seed.mjs — NO editar a mano.");
-out.push("-- Correr DESPUÉS de 0001_schema.sql. Idempotente por claves naturales.");
+out.push("-- Correr DESPUÉS de las migraciones. Resetea los datos a la línea de base del club.");
+out.push("-- ⚠️  TRUNCA cobros / gastos_3t / gastos_fijos / caja_movimientos: borra lo cargado por la app.");
 out.push("begin;");
+out.push("");
+out.push("-- Desactivar triggers de Caja: los movimientos históricos ya vienen en este archivo.");
+out.push("set session_replication_role = replica;");
+out.push("");
+out.push("truncate table cobros, gastos_3t, gastos_fijos, caja_movimientos restart identity;");
 out.push("");
 out.push(`update config set monto_global = 20000, temporada_activa = ${TEMPORADA}, saldo_inicial_mp = 97216.84, saldo_inicial_efectivo = 18000 where id = 1;`);
 out.push("");
@@ -125,11 +131,12 @@ for (const r of fixRows) {
   const monto = tipo === "Local" && montoRaw ? montoRaw : null;
   const jugado = /^si$/i.test(clean(r[4])) ? "true" : "false";
   const obs = fecha === "2026-08-29" ? "Cambió de visitante a local" : "";
+  const grupoTurno = tipo === "Local" ? grupoNorm(r[5]) : null;
   out.push(
-    `insert into partidos (fecha, rival, tipo, monto_3t, jugado, obs, temporada) values ` +
-    `(${q(fecha)}, ${q(rival)}, ${q(tipo)}, ${qn(monto)}, ${jugado}, ${q(obs)}, ${TEMPORADA}) ` +
+    `insert into partidos (fecha, rival, tipo, monto_3t, jugado, obs, grupo_turno, temporada) values ` +
+    `(${q(fecha)}, ${q(rival)}, ${q(tipo)}, ${qn(monto)}, ${jugado}, ${q(obs)}, ${grupoTurno ? q(grupoTurno) : "null"}, ${TEMPORADA}) ` +
     `on conflict (temporada, fecha, rival) do update set tipo=excluded.tipo, monto_3t=excluded.monto_3t, ` +
-    `jugado=excluded.jugado, obs=excluded.obs;`
+    `jugado=excluded.jugado, obs=excluded.obs, grupo_turno=excluded.grupo_turno;`
   );
 }
 out.push("");
@@ -249,6 +256,7 @@ for (const r of cjRows) {
   );
 }
 out.push("");
+out.push("set session_replication_role = origin;");
 out.push("commit;");
 out.push("");
 

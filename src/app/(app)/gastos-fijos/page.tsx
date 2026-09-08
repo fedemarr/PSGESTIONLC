@@ -1,17 +1,17 @@
-import { Stub } from "@/components/Stub";
+import { Topbar } from "@/components/Topbar";
+import { getGastosFijos, getPartidos } from "@/lib/data";
+import { GastosFijosView } from "./GastosFijosView";
 
-export default function GastosFijosPage() {
+export const dynamic = "force-dynamic";
+
+export default async function GastosFijosPage() {
+  const [partidos, gastos] = await Promise.all([getPartidos(), getGastosFijos()]);
   return (
-    <Stub
-      title="Gastos Fijos"
-      descripcion="Lavandería, entretiempo y gastos extras — aplica a todos los partidos (locales y visitantes). Tres tabs con tabla y modal unificado."
-      puntos={[
-        "Tab Lavandería: cantidad × precio unitario = total (cálculo con preview)",
-        "Tab Entretiempo: detalle libre + total",
-        "Tab Extras: concepto + monto",
-        "Estado: Pagado / Pendiente / Parcial",
-        "Cada registro pagado → egreso automático en Caja con el origen correspondiente",
-      ]}
-    />
+    <>
+      <Topbar title="Gastos Fijos" />
+      <main className="p-4 md:p-6">
+        <GastosFijosView partidos={partidos} gastos={gastos} />
+      </main>
+    </>
   );
 }

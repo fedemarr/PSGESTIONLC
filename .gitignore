@@ -39,6 +39,10 @@ yarn-error.log*
 *.xlsx
 /supabase/seed.sql
 /docs/
+/TESORERIA_CEDROS_SPEC.md
+/FEDE_CAJA_HISTORICA.md
+/tesoreria_cedros.html
+/modulo_*.html
 
 .vercel
 .env*

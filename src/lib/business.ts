@@ -6,6 +6,11 @@ export function grupoTurno(indiceLocal: number): Grupo3T {
   return ROTACION_GRUPOS[indiceLocal % 3];
 }
 
+/** Grupo de turno de un partido local: el guardado, o el sugerido por rotación. */
+export function grupoTurnoPartido(partido: Partido, indiceLocal: number): Grupo3T {
+  return partido.grupo_turno ?? grupoTurno(indiceLocal);
+}
+
 /** Monto de 3T que aplica a un partido (override propio o global). */
 export function montoPartido(p: Partido, montoGlobal: number): number {
   return p.monto_3t ?? montoGlobal;
@@ -59,23 +64,79 @@ export function estadoCelda(
   return { estado: "debe", monto: monto3T, diff: -monto3T };
 }
 
+/**
+ * Suma de compras (Gastos 3T) por jugador del plantel y partido.
+ * key: `${comprador}:${partido_id}` -> total monto_gastado.
+ */
+export function comprasMontoMap(gastos3t: Gasto3T[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const g of gastos3t) {
+    if (!g.es_jugador_plantel) continue;
+    const k = `${g.comprador}:${g.partido_id}`;
+    m.set(k, (m.get(k) ?? 0) + g.monto_gastado);
+  }
+  return m;
+}
+
+/**
+ * Estado de la celda combinando el cobro explícito y las compras del jugador.
+ * Prioridad: si hay un cobro registrado, manda. Si no, las compras cubren el 3T.
+ */
+export function estadoCeldaJugador(args: {
+  cobro?: Cobro;
+  comprasMonto: number;
+  monto3T: number;
+  partido: Partido;
+  partidoConRegistros: boolean; // hay cobros o compras cargados para ese partido
+}): CeldaCobro {
+  const { cobro, comprasMonto, monto3T, partido, partidoConRegistros } = args;
+  if (cobro) return estadoCelda(cobro, monto3T, partido, true);
+  if (comprasMonto > 0) {
+    const diff = comprasMonto - monto3T;
+    return diff >= 0
+      ? { estado: "compra", monto: monto3T, diff }
+      : { estado: "parcial", monto: comprasMonto, diff };
+  }
+  const activo = partido.jugado && partidoConRegistros;
+  return activo
+    ? { estado: "debe", monto: monto3T, diff: -monto3T }
+    : { estado: "pendiente", monto: null, diff: 0 };
+}
+
 /** Deuda acumulada de un jugador (negativo = debe). */
 export function deudaJugador(
   jugador: Jugador,
   partidos: Partido[],
   cobrosByJugPartido: Map<string, Cobro>,
   montoGlobal: number,
-  partidosConCobros: Set<string>
+  partidosConRegistros: Set<string>,
+  comprasMap: Map<string, number> = new Map()
 ): number {
   return partidosLocales(partidos).reduce((sum, p) => {
     const m = montoPartido(p, montoGlobal);
-    const c = cobrosByJugPartido.get(`${jugador.id}:${p.id}`);
-    const e = estadoCelda(c, m, p, partidosConCobros.has(p.id));
+    const e = estadoCeldaJugador({
+      cobro: cobrosByJugPartido.get(`${jugador.id}:${p.id}`),
+      comprasMonto: comprasMap.get(`${jugador.nombre}:${p.id}`) ?? 0,
+      monto3T: m,
+      partido: p,
+      partidoConRegistros: partidosConRegistros.has(p.id),
+    });
     if (e.estado === "ausente" || e.estado === "pendiente") return sum;
     if (e.estado === "saldado" || e.estado === "compra") return sum;
     if (e.estado === "parcial") return sum + e.diff;
     return sum - m;
   }, 0);
+}
+
+/** Saldo de una compra de Gasto 3T respecto del monto del 3T. */
+export function saldoCompra3T(montoGastado: number, monto3T: number): {
+  estado: "saldado" | "reintegro" | "debe";
+  monto: number; // reintegro que le debe el fondo, o diferencia que debe el jugador
+} {
+  const diff = montoGastado - monto3T;
+  if (diff === 0) return { estado: "saldado", monto: 0 };
+  if (diff > 0) return { estado: "reintegro", monto: diff };
+  return { estado: "debe", monto: -diff };
 }
 
 // ---------- Caja ----------
@@ -114,7 +175,11 @@ export function presupuestoPorPartido(args: {
   const { partidos, jugadores, cobros, gastos3t, gastosFijos, montoGlobal } = args;
   const activos = jugadores.filter((j) => j.activo);
   const cobrosByJugPartido = new Map(cobros.map((c) => [`${c.jugador_id}:${c.partido_id}`, c]));
-  const partidosConCobros = new Set(cobros.map((c) => c.partido_id));
+  const comprasMap = comprasMontoMap(gastos3t);
+  const partidosConRegistros = new Set<string>([
+    ...cobros.map((c) => c.partido_id),
+    ...gastos3t.filter((g) => g.es_jugador_plantel).map((g) => g.partido_id),
+  ]);
 
   return [...partidos]
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
@@ -127,11 +192,20 @@ export function presupuestoPorPartido(args: {
       if (local) {
         for (const j of activos) {
           const c = cobrosByJugPartido.get(`${j.id}:${p.id}`);
-          const e = estadoCelda(c, m, p, partidosConCobros.has(p.id));
+          const comprasMonto = comprasMap.get(`${j.nombre}:${p.id}`) ?? 0;
+          const e = estadoCeldaJugador({
+            cobro: c,
+            comprasMonto,
+            monto3T: m,
+            partido: p,
+            partidoConRegistros: partidosConRegistros.has(p.id),
+          });
           if (e.estado === "pendiente" || e.estado === "ausente") continue;
           deberian += m;
           if (c && c.presencia !== "ausente") {
             cobrado += c.es_compra ? Math.min(c.monto, m) : c.monto;
+          } else if (!c && comprasMonto > 0) {
+            cobrado += Math.min(comprasMonto, m);
           }
         }
       }

@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/server";
 import { TEMPORADA } from "@/lib/data";
-import type { PartidoTipo } from "@/lib/types";
+import type { Grupo3T, PartidoTipo } from "@/lib/types";
 
 function parse(formData: FormData) {
   const tipo = String(formData.get("tipo") ?? "Local") as PartidoTipo;
   const montoRaw = formData.get("monto_3t");
+  const grupoTurno = String(formData.get("grupo_turno") ?? "");
   return {
     fecha: String(formData.get("fecha") ?? ""),
     rival: String(formData.get("rival") ?? "").trim(),
@@ -15,6 +16,7 @@ function parse(formData: FormData) {
     monto_3t: tipo === "Local" && montoRaw ? Number(montoRaw) : null,
     jugado: formData.get("jugado") === "on" || formData.get("jugado") === "true",
     obs: String(formData.get("obs") ?? "").trim(),
+    grupo_turno: tipo === "Local" && grupoTurno ? (grupoTurno as Grupo3T) : null,
   };
 }
 

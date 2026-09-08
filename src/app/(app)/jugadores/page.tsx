@@ -1,24 +1,36 @@
 import { Topbar } from "@/components/Topbar";
-import { getCobros, getConfig, getJugadores, getPartidos } from "@/lib/data";
-import { deudaJugador } from "@/lib/business";
+import { getCobros, getConfig, getGastos3T, getJugadores, getPartidos } from "@/lib/data";
+import { comprasMontoMap, deudaJugador } from "@/lib/business";
 import { JugadoresView } from "./JugadoresView";
 
 export const dynamic = "force-dynamic";
 
 export default async function JugadoresPage() {
-  const [jugadores, partidos, cobros, config] = await Promise.all([
+  const [jugadores, partidos, cobros, gastos3t, config] = await Promise.all([
     getJugadores(),
     getPartidos(),
     getCobros(),
+    getGastos3T(),
     getConfig(),
   ]);
 
   const cobrosByJugPartido = new Map(cobros.map((c) => [`${c.jugador_id}:${c.partido_id}`, c]));
-  const partidosConCobros = new Set(cobros.map((c) => c.partido_id));
+  const comprasMap = comprasMontoMap(gastos3t);
+  const partidosConRegistros = new Set<string>([
+    ...cobros.map((c) => c.partido_id),
+    ...gastos3t.filter((g) => g.es_jugador_plantel).map((g) => g.partido_id),
+  ]);
 
   const deudas: Record<string, number> = {};
   for (const j of jugadores) {
-    deudas[j.id] = deudaJugador(j, partidos, cobrosByJugPartido, config.monto_global, partidosConCobros);
+    deudas[j.id] = deudaJugador(
+      j,
+      partidos,
+      cobrosByJugPartido,
+      config.monto_global,
+      partidosConRegistros,
+      comprasMap,
+    );
   }
 
   return (
