@@ -24,7 +24,7 @@ export default async function JugadoresPage() {
   return (
     <>
       <Topbar title="Jugadores" />
-      <main className="p-6">
+      <main className="p-4 md:p-6">
         <JugadoresView jugadores={jugadores} deudas={deudas} />
       </main>
     </>

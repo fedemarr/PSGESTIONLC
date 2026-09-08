@@ -61,7 +61,7 @@ export default async function PresupuestoPage() {
   return (
     <>
       <Topbar title="Presupuesto" />
-      <main className="p-6">
+      <main className="p-4 md:p-6">
         <div className="card">
           <div className="card-header">Presupuesto real 2026 — por partido</div>
           {filas.length === 0 ? (

@@ -9,7 +9,7 @@ export default async function CajaPage() {
   return (
     <>
       <Topbar title="Caja" />
-      <main className="p-6">
+      <main className="p-4 md:p-6">
         <CajaView movimientos={movimientos} />
       </main>
     </>

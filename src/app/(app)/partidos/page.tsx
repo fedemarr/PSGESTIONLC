@@ -9,7 +9,7 @@ export default async function PartidosPage() {
   return (
     <>
       <Topbar title="Partidos" />
-      <main className="p-6">
+      <main className="p-4 md:p-6">
         <PartidosView partidos={partidos} montoGlobal={config.monto_global} />
       </main>
     </>

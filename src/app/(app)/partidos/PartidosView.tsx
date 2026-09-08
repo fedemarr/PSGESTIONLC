@@ -202,14 +202,14 @@ function PartidoModal({ partido, onClose }: { partido: Partido | null; onClose: 
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
-      <form action={action} onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+      <form action={action} onClick={(e) => e.stopPropagation()} className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-xl bg-white shadow-2xl">
         <div className="flex items-center justify-between rounded-t-xl bg-[var(--azul)] px-4 py-3 text-white">
           <h2 className="text-[15px] font-bold">{partido ? `Editar — vs ${partido.rival}` : "Agregar partido"}</h2>
           <button type="button" onClick={onClose} className="opacity-70 hover:opacity-100">
             ✕
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-3 p-4">
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
           <div className="col-span-2 flex gap-2">
             {(["Local", "Visitante"] as PartidoTipo[]).map((t) => (
               <button

@@ -101,7 +101,8 @@ export function JugadoresView({
           >
             {key} <span className="font-normal opacity-70">({lista.length})</span>
           </div>
-          <table className="table-base">
+          <div className="overflow-x-auto">
+          <table className="table-base min-w-[640px]">
             <thead>
               <tr>
                 <th>Jugador</th>
@@ -149,6 +150,7 @@ export function JugadoresView({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       ))}
 
@@ -226,7 +228,7 @@ function JugadorModal({ jugador, onClose }: { jugador: Jugador | null; onClose: 
       <form
         action={action}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-xl bg-white shadow-2xl"
+        className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-xl bg-white shadow-2xl"
       >
         <div className="flex items-center justify-between rounded-t-xl bg-[var(--azul)] px-4 py-3 text-white">
           <h2 className="text-[15px] font-bold">{jugador ? "Editar jugador" : "Alta de jugador"}</h2>
@@ -234,7 +236,7 @@ function JugadorModal({ jugador, onClose }: { jugador: Jugador | null; onClose: 
             ✕
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-3 p-4">
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
           <Field className="col-span-2" label="Apellido y nombre *">
             <input name="nombre" required defaultValue={jugador?.nombre} className="input" placeholder="Lopez Juan Ignacio" />
           </Field>

@@ -44,7 +44,7 @@ export default async function InicioPage() {
   return (
     <>
       <Topbar title="Inicio" />
-      <main className="p-6">
+      <main className="p-4 md:p-6">
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Stat label="Fondo MP" value={fmtS(sMP)} tone={sMP < 0 ? "rojo" : "verde"} sub="Mercado Pago" />
           <Stat label="Fondo Efectivo" value={fmtS(sEF)} tone={sEF < 0 ? "rojo" : "verde"} sub="En mano" />

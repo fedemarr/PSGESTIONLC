@@ -61,12 +61,12 @@ export function CajaView({ movimientos }: { movimientos: CajaMovimiento[] }) {
         />
       </div>
 
-      <div className="mb-4 flex items-center justify-between rounded-lg bg-[var(--azul)] px-5 py-3.5 text-white">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[var(--azul)] px-4 py-3.5 text-white md:px-5">
         <div>
           <div className="text-[11px] opacity-65">TOTAL DISPONIBLE</div>
-          <div className="text-[26px] font-extrabold">{fmtS(sMP + sEF)}</div>
+          <div className="text-[22px] font-extrabold md:text-[26px]">{fmtS(sMP + sEF)}</div>
         </div>
-        <div className="flex gap-5 text-right text-[13px]">
+        <div className="flex gap-4 text-right text-[13px] md:gap-5">
           <div>
             <div className="text-[10px] opacity-60">MP</div>
             <div className="font-bold text-[#7FDBFF]">{fmtS(sMP)}</div>
@@ -261,7 +261,7 @@ function MovModal({ init, onClose }: { init: { tipo: MovTipo; fondo: FormaPago }
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
-      <form action={action} onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+      <form action={action} onClick={(e) => e.stopPropagation()} className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-xl bg-white shadow-2xl">
         <div className="flex items-center justify-between rounded-t-xl px-4 py-3 text-white"
           style={{ background: tipo === "Ingreso" ? "var(--verde)" : "var(--rojo)" }}>
           <h2 className="text-[15px] font-bold">Movimiento manual</h2>

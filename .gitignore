@@ -39,3 +39,6 @@ yarn-error.log*
 *.xlsx
 /supabase/seed.sql
 /docs/
+
+.vercel
+.env*
