@@ -29,7 +29,10 @@ const SECCIONES: { titulo: string; items: { href: string; label: string; icon: s
   },
   {
     titulo: "Plantel",
-    items: [{ href: "/jugadores", label: "Jugadores", icon: "👥" }],
+    items: [
+      { href: "/jugadores", label: "Jugadores", icon: "👥" },
+      { href: "/formaciones", label: "Formaciones", icon: "📋" },
+    ],
   },
 ];
 

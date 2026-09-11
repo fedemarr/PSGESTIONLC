@@ -2,9 +2,12 @@ import "server-only";
 import { createClient, hasSupabaseEnv } from "./supabase/server";
 import type {
   Activacion,
+  AccionPartido,
+  AjusteResultado,
   CajaMovimiento,
   Cobro,
   Config,
+  Formacion,
   Gasto3T,
   GastoFijo,
   Jugador,
@@ -81,6 +84,27 @@ export async function getActivaciones(): Promise<Activacion[]> {
   const sb = createClient();
   const { data } = await sb.from("jugador_activaciones").select("*");
   return (data as Activacion[]) ?? [];
+}
+
+export async function getFormaciones(): Promise<Formacion[]> {
+  if (!hasSupabaseEnv()) return [];
+  const sb = createClient();
+  const { data } = await sb.from("formaciones").select("*");
+  return (data as Formacion[]) ?? [];
+}
+
+export async function getAccionesPartido(): Promise<AccionPartido[]> {
+  if (!hasSupabaseEnv()) return [];
+  const sb = createClient();
+  const { data } = await sb.from("acciones_partido").select("*");
+  return (data as AccionPartido[]) ?? [];
+}
+
+export async function getAjustesResultado(): Promise<AjusteResultado[]> {
+  if (!hasSupabaseEnv()) return [];
+  const sb = createClient();
+  const { data } = await sb.from("ajustes_resultado").select("*");
+  return (data as AjusteResultado[]) ?? [];
 }
 
 export async function getCajaMovimientos(): Promise<CajaMovimiento[]> {

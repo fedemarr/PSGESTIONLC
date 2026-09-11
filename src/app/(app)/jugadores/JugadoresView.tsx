@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Activacion, Cobro, Gasto3T, Grupo3T, Jugador, Partido } from "@/lib/types";
+import type { AccionPartido, Activacion, AjusteResultado, Cobro, Formacion, Gasto3T, Grupo3T, Jugador, Partido } from "@/lib/types";
 import { fmt, GRUPO_META, CELDA_META, fechaCorta } from "@/lib/format";
 import { activoEnFecha, comprasMontoMap, estadoCeldaJugador, montoPartido, partidosLocales } from "@/lib/business";
+import { resumenFormaciones } from "@/lib/rugby";
 import { crearJugador, actualizarJugador, darDeBaja, reactivar } from "./actions";
 
 const GRUPOS: Grupo3T[] = ["Sabores express", "Mc Donalds", "Whisky"];
@@ -24,6 +25,9 @@ export function JugadoresView({
   cobros,
   gastos3t,
   activaciones,
+  formaciones,
+  acciones,
+  ajustes,
   montoGlobal,
 }: {
   jugadores: Jugador[];
@@ -32,6 +36,9 @@ export function JugadoresView({
   cobros: Cobro[];
   gastos3t: Gasto3T[];
   activaciones: Activacion[];
+  formaciones: Formacion[];
+  acciones: AccionPartido[];
+  ajustes: AjusteResultado[];
   montoGlobal: number;
 }) {
   const [q, setQ] = useState("");
@@ -193,6 +200,9 @@ export function JugadoresView({
           cobros={cobros}
           gastos3t={gastos3t}
           activaciones={activaciones}
+          formaciones={formaciones}
+          acciones={acciones}
+          ajustes={ajustes}
           montoGlobal={montoGlobal}
           onClose={() => setFicha(null)}
         />
@@ -421,6 +431,9 @@ function FichaJugador({
   cobros,
   gastos3t,
   activaciones,
+  formaciones,
+  acciones,
+  ajustes,
   montoGlobal,
   onClose,
 }: {
@@ -430,9 +443,13 @@ function FichaJugador({
   cobros: Cobro[];
   gastos3t: Gasto3T[];
   activaciones: Activacion[];
+  formaciones: Formacion[];
+  acciones: AccionPartido[];
+  ajustes: AjusteResultado[];
   montoGlobal: number;
   onClose: () => void;
 }) {
+  const [tab, setTab] = useState<"cobros" | "formaciones">("cobros");
   const locales = useMemo(() => partidosLocales(partidos), [partidos]);
   const comprasMap = useMemo(() => comprasMontoMap(gastos3t), [gastos3t]);
   const cobrosByPartido = useMemo(
@@ -464,6 +481,26 @@ function FichaJugador({
   const relevantes = filas.filter(({ e }) => e.estado !== "pendiente");
   const jugados = relevantes.length;
   const pagados = relevantes.filter(({ e }) => ["saldado", "compra", "acordado"].includes(e.estado)).length;
+
+  const scoring = useMemo(() => {
+    const propias = acciones.filter((a) => a.equipo === "cedros" && a.jugador_id === jugador.id);
+    const out = { tries: 0, conv: 0, penales: 0, puntos: 0, am: 0, rj: 0 };
+    for (const a of propias) {
+      if (a.tipo === "try") out.tries++;
+      else if (a.tipo === "conv") out.conv++;
+      else if (a.tipo === "penal") out.penales++;
+      else if (a.tipo === "am") out.am++;
+      else if (a.tipo === "rj") out.rj++;
+      out.puntos += { try: 5, conv: 2, penal: 3, am: 0, rj: 0 }[a.tipo];
+    }
+    return out;
+  }, [acciones, jugador.id]);
+
+  const form = useMemo(
+    () => resumenFormaciones(jugador.id, partidos, formaciones, acciones, ajustes),
+    [jugador.id, partidos, formaciones, acciones, ajustes],
+  );
+  const enPrimera = form.hist.filter((h) => h.categoria === "Primera").length;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
@@ -498,11 +535,43 @@ function FichaJugador({
         </div>
 
         <div className="p-4">
+          <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">💳 Cobros 3T</div>
           <div className="mb-3 grid grid-cols-3 gap-2 text-center">
-            <MiniStat label="Partidos jugados" value={jugados} />
-            <MiniStat label="Pagados" value={pagados} />
+            <MiniStat label="Partidos" value={jugados} />
+            <MiniStat label="Pagados" value={pagados} tone="verde" />
             <MiniStat label="Deuda" value={deuda < 0 ? fmt(deuda) : "$0"} tone={deuda < 0 ? "rojo" : "verde"} />
           </div>
+
+          {(scoring.tries > 0 || scoring.conv > 0 || scoring.penales > 0 || form.total > 0) && (
+            <>
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">🏉 Puntuación temporada</div>
+              <div className="mb-3 grid grid-cols-4 gap-2 text-center">
+                <MiniStat label="Tries" value={scoring.tries} style={{ color: "#1F4E79" }} />
+                <MiniStat label="Conv." value={scoring.conv} style={{ color: "#375623" }} />
+                <MiniStat label="Penales" value={scoring.penales} style={{ color: "#843C0C" }} />
+                <MiniStat label="Puntos" value={scoring.puntos} tone="verde" />
+              </div>
+
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">📋 Resultados en formación</div>
+              <div className="mb-3 grid grid-cols-4 gap-2 text-center">
+                <MiniStat label="Jugados" value={form.total} />
+                <MiniStat label="✅ Ganados" value={form.gan} tone="verde" />
+                <MiniStat label="❌ Perdidos" value={form.per} tone="rojo" />
+                <MiniStat label="🟡 Empatados" value={form.emp} style={{ color: "#7D6608" }} />
+              </div>
+
+              {(scoring.am > 0 || scoring.rj > 0) && (
+                <>
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">🟨🟥 Tarjetas temporada</div>
+                  <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+                    <MiniStat label="🟨 Amarillas" value={scoring.am || "—"} style={{ color: "#92400E" }} />
+                    <MiniStat label="🟥 Rojas" value={scoring.rj || "—"} tone="rojo" />
+                    <MiniStat label="En Primera" value={enPrimera} style={{ color: "#1F4E79" }} />
+                  </div>
+                </>
+              )}
+            </>
+          )}
 
           <div
             className="mb-4 rounded-lg p-3 text-center font-bold"
@@ -514,39 +583,89 @@ function FichaJugador({
             {deuda < 0 ? `Deuda total ${fmt(deuda)}` : "Sin deuda — al día ✓"}
           </div>
 
-          <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-neutral-400">
-            Historial por partido
+          <div className="mb-3 flex gap-1 border-b border-[var(--borde)]">
+            <button
+              onClick={() => setTab("cobros")}
+              className={`-mb-px border-b-2 px-3 py-1.5 text-[12px] font-semibold ${tab === "cobros" ? "border-[var(--azul)] text-[var(--azul)]" : "border-transparent text-neutral-400"}`}
+            >
+              💳 Cobros
+            </button>
+            <button
+              onClick={() => setTab("formaciones")}
+              className={`-mb-px border-b-2 px-3 py-1.5 text-[12px] font-semibold ${tab === "formaciones" ? "border-[var(--azul)] text-[var(--azul)]" : "border-transparent text-neutral-400"}`}
+            >
+              📋 Formaciones
+            </button>
           </div>
-          {filas.length === 0 ? (
-            <p className="py-6 text-center text-[13px] text-neutral-400">Sin partidos locales cargados.</p>
-          ) : (
-            <table className="table-base">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Rival</th>
-                  <th>Estado</th>
-                  <th className="!text-right">Monto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filas.map(({ p, e }) => {
-                  const meta = CELDA_META[e.estado];
-                  return (
-                    <tr key={p.id}>
-                      <td className="whitespace-nowrap font-bold text-[var(--azul)]">{fechaCorta(p.fecha)}</td>
-                      <td className="text-[12px] text-neutral-600">{p.rival}</td>
-                      <td>
-                        <span className="badge" style={{ background: meta.bg, color: meta.fg }}>
-                          {e.estado === "parcial" ? `Falta ${fmt(Math.abs(e.diff))}` : meta.label || "—"}
-                        </span>
-                      </td>
-                      <td className="!text-right font-bold">{e.monto != null ? fmt(e.monto) : "—"}</td>
+
+          {tab === "cobros" ? (
+            <>
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-neutral-400">Historial de cobros</div>
+              {filas.length === 0 ? (
+                <p className="py-6 text-center text-[13px] text-neutral-400">Sin partidos locales cargados.</p>
+              ) : (
+                <table className="table-base">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Rival</th>
+                      <th>Estado</th>
+                      <th className="!text-right">Monto</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {filas.map(({ p, e }) => {
+                      const meta = CELDA_META[e.estado];
+                      return (
+                        <tr key={p.id}>
+                          <td className="whitespace-nowrap font-bold text-[var(--azul)]">{fechaCorta(p.fecha)}</td>
+                          <td className="text-[12px] text-neutral-600">{p.rival}</td>
+                          <td>
+                            <span className="badge" style={{ background: meta.bg, color: meta.fg }}>
+                              {e.estado === "parcial" ? `Falta ${fmt(Math.abs(e.diff))}` : meta.label || "—"}
+                            </span>
+                          </td>
+                          <td className="!text-right font-bold">{e.monto != null ? fmt(e.monto) : "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-neutral-400">Partidos en formación</div>
+              {form.hist.length === 0 ? (
+                <p className="py-6 text-center text-[13px] text-neutral-400">Sin partidos en formaciones.</p>
+              ) : (
+                <div className="space-y-1">
+                  {form.hist.map((h, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-md bg-[var(--gris)] px-2.5 py-1.5">
+                      <div className="min-w-[38px] text-[11px] font-bold text-[var(--azul)]">{fechaCorta(h.partido.fecha)}</div>
+                      <div className="flex-1 truncate text-[11px] text-neutral-600">{h.partido.rival}</div>
+                      <span className="badge" style={{ background: "#EBF3FB", color: "#1F4E79" }}>
+                        {h.categoria === "Pre-intermedia" ? "Pre" : h.categoria}
+                      </span>
+                      {h.am > 0 && <span className="text-[10px]">🟨×{h.am}</span>}
+                      {h.rj > 0 && <span className="text-[10px]">🟥×{h.rj}</span>}
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                        style={
+                          h.res === "W"
+                            ? { background: "var(--verde-clr)", color: "var(--verde)" }
+                            : h.res === "L"
+                              ? { background: "var(--rojo-clr)", color: "var(--rojo)" }
+                              : { background: "var(--amarillo)", color: "#7D6608" }
+                        }
+                      >
+                        {h.ptsCedros}—{h.ptsRival} {h.res === "W" ? "✅" : h.res === "L" ? "❌" : "🟡"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -554,13 +673,23 @@ function FichaJugador({
   );
 }
 
-function MiniStat({ label, value, tone }: { label: string; value: string | number; tone?: "rojo" | "verde" }) {
+function MiniStat({
+  label,
+  value,
+  tone,
+  style,
+}: {
+  label: string;
+  value: string | number;
+  tone?: "rojo" | "verde";
+  style?: React.CSSProperties;
+}) {
   return (
     <div className="rounded-md bg-[var(--gris)] p-2">
       <div className="text-[10px] text-neutral-500">{label}</div>
       <div
         className="text-[15px] font-extrabold"
-        style={{ color: tone === "rojo" ? "var(--rojo)" : tone === "verde" ? "var(--verde)" : "var(--azul)" }}
+        style={style ?? { color: tone === "rojo" ? "var(--rojo)" : tone === "verde" ? "var(--verde)" : "var(--azul)" }}
       >
         {value}
       </div>

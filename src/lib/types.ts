@@ -63,6 +63,42 @@ export interface Activacion {
   created_at: string;
 }
 
+// ── Resultados deportivos ──────────────────────────────────────
+
+export type RugbyCategoria = "Primera" | "Intermedia" | "Pre-intermedia";
+export type RugbyEquipo = "cedros" | "rival";
+export type AccionTipo = "try" | "conv" | "penal" | "am" | "rj";
+
+/** Un jugador convocado a un partido+categoría. puesto null = suplente. */
+export interface Formacion {
+  id: string;
+  partido_id: string;
+  categoria: RugbyCategoria;
+  jugador_id: string;
+  puesto: number | null;
+  capitan: boolean;
+  created_at: string;
+}
+
+export interface AccionPartido {
+  id: string;
+  partido_id: string;
+  categoria: RugbyCategoria;
+  equipo: RugbyEquipo;
+  tipo: AccionTipo;
+  jugador_id: string | null;
+  created_at: string;
+}
+
+export interface AjusteResultado {
+  id: string;
+  partido_id: string;
+  categoria: RugbyCategoria;
+  pts_cedros: number;
+  pts_rival: number;
+  created_at: string;
+}
+
 export interface Gasto3T {
   id: string;
   partido_id: string;
