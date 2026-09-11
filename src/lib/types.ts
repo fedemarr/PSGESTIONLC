@@ -48,9 +48,19 @@ export interface Cobro {
   monto: number;
   forma: FormaPago;
   es_compra: boolean;
+  monto_acordado: boolean;
   obs: string;
   created_at: string;
   updated_at: string;
+}
+
+/** Período en el que un jugador estuvo activo (genera deuda automática). */
+export interface Activacion {
+  id: string;
+  jugador_id: string;
+  fecha_alta: string;
+  fecha_baja: string | null;
+  created_at: string;
 }
 
 export interface Gasto3T {

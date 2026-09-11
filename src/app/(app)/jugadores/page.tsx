@@ -1,16 +1,17 @@
 import { Topbar } from "@/components/Topbar";
-import { getCobros, getConfig, getGastos3T, getJugadores, getPartidos } from "@/lib/data";
+import { getActivaciones, getCobros, getConfig, getGastos3T, getJugadores, getPartidos } from "@/lib/data";
 import { comprasMontoMap, deudaJugador } from "@/lib/business";
 import { JugadoresView } from "./JugadoresView";
 
 export const dynamic = "force-dynamic";
 
 export default async function JugadoresPage() {
-  const [jugadores, partidos, cobros, gastos3t, config] = await Promise.all([
+  const [jugadores, partidos, cobros, gastos3t, activaciones, config] = await Promise.all([
     getJugadores(),
     getPartidos(),
     getCobros(),
     getGastos3T(),
+    getActivaciones(),
     getConfig(),
   ]);
 
@@ -30,6 +31,7 @@ export default async function JugadoresPage() {
       config.monto_global,
       partidosConRegistros,
       comprasMap,
+      activaciones,
     );
   }
 
@@ -37,7 +39,15 @@ export default async function JugadoresPage() {
     <>
       <Topbar title="Jugadores" />
       <main className="p-4 md:p-6">
-        <JugadoresView jugadores={jugadores} deudas={deudas} />
+        <JugadoresView
+          jugadores={jugadores}
+          deudas={deudas}
+          partidos={partidos}
+          cobros={cobros}
+          gastos3t={gastos3t}
+          activaciones={activaciones}
+          montoGlobal={config.monto_global}
+        />
       </main>
     </>
   );

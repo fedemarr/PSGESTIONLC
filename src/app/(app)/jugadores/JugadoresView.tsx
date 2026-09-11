@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Grupo3T, Jugador } from "@/lib/types";
-import { fmt, GRUPO_META } from "@/lib/format";
-import { crearJugador, actualizarJugador, toggleActivoJugador } from "./actions";
+import type { Activacion, Cobro, Gasto3T, Grupo3T, Jugador, Partido } from "@/lib/types";
+import { fmt, GRUPO_META, CELDA_META, fechaCorta } from "@/lib/format";
+import { activoEnFecha, comprasMontoMap, estadoCeldaJugador, montoPartido, partidosLocales } from "@/lib/business";
+import { crearJugador, actualizarJugador, darDeBaja, reactivar } from "./actions";
 
 const GRUPOS: Grupo3T[] = ["Sabores express", "Mc Donalds", "Whisky"];
 const POSICIONES = [
@@ -19,9 +20,19 @@ type Agrup = "grupo" | "camada" | "alfa";
 export function JugadoresView({
   jugadores,
   deudas,
+  partidos,
+  cobros,
+  gastos3t,
+  activaciones,
+  montoGlobal,
 }: {
   jugadores: Jugador[];
   deudas: Record<string, number>;
+  partidos: Partido[];
+  cobros: Cobro[];
+  gastos3t: Gasto3T[];
+  activaciones: Activacion[];
+  montoGlobal: number;
 }) {
   const [q, setQ] = useState("");
   const [grupo, setGrupo] = useState<Grupo3T | "">("");
@@ -29,6 +40,8 @@ export function JugadoresView({
   const [agrup, setAgrup] = useState<Agrup>("grupo");
   const [editing, setEditing] = useState<Jugador | null>(null);
   const [creating, setCreating] = useState(false);
+  const [ficha, setFicha] = useState<Jugador | null>(null);
+  const [bajaReactivar, setBajaReactivar] = useState<{ jugador: Jugador; modo: "baja" | "reactivar" } | null>(null);
 
   const activos = jugadores.filter((j) => j.activo);
   const conDeuda = activos.filter((j) => (deudas[j.id] ?? 0) < 0);
@@ -118,7 +131,7 @@ export function JugadoresView({
               {lista.map((j) => {
                 const d = deudas[j.id] ?? 0;
                 return (
-                  <tr key={j.id} className={j.activo ? "" : "opacity-50"}>
+                  <tr key={j.id} className={`cursor-pointer ${j.activo ? "" : "opacity-50"}`} onClick={() => setFicha(j)}>
                     <td className="font-bold">{j.nombre}</td>
                     <td className="text-[12px] text-neutral-400">{j.apodo || "—"}</td>
                     <td>{j.camada ?? "—"}</td>
@@ -133,13 +146,13 @@ export function JugadoresView({
                         {d < 0 ? fmt(d) : d === 0 ? "Al día" : "+" + fmt(d)}
                       </span>
                     </td>
-                    <td className="text-right">
+                    <td className="text-right" onClick={(e) => e.stopPropagation()}>
                       <button className="btn btn-ghost !px-2 !py-1" onClick={() => setEditing(j)}>
                         ✏️
                       </button>
                       <button
                         className="btn btn-ghost !px-2 !py-1"
-                        onClick={() => toggleActivoJugador(j.id, !j.activo)}
+                        onClick={() => setBajaReactivar({ jugador: j, modo: j.activo ? "baja" : "reactivar" })}
                         title={j.activo ? "Dar de baja" : "Reactivar"}
                       >
                         {j.activo ? "🚫" : "↩️"}
@@ -161,6 +174,27 @@ export function JugadoresView({
             setCreating(false);
             setEditing(null);
           }}
+        />
+      )}
+
+      {bajaReactivar && (
+        <BajaReactivarModal
+          jugador={bajaReactivar.jugador}
+          modo={bajaReactivar.modo}
+          onClose={() => setBajaReactivar(null)}
+        />
+      )}
+
+      {ficha && (
+        <FichaJugador
+          jugador={ficha}
+          deuda={deudas[ficha.id] ?? 0}
+          partidos={partidos}
+          cobros={cobros}
+          gastos3t={gastos3t}
+          activaciones={activaciones}
+          montoGlobal={montoGlobal}
+          onClose={() => setFicha(null)}
         />
       )}
     </div>
@@ -266,13 +300,20 @@ function JugadorModal({ jugador, onClose }: { jugador: Jugador | null; onClose: 
               ))}
             </select>
           </Field>
+          {!jugador && (
+            <Field label="Fecha de alta">
+              <input name="fecha_alta" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className="input" />
+            </Field>
+          )}
           <Field className="col-span-2" label="Observaciones">
             <input name="obs" defaultValue={jugador?.obs} className="input" />
           </Field>
-          <label className="col-span-2 flex items-center gap-2 text-[13px]">
-            <input type="checkbox" name="activo" defaultChecked={jugador ? jugador.activo : true} />
-            Activo
-          </label>
+          {jugador && (
+            <p className="col-span-2 text-[11px] text-neutral-400">
+              El estado (activo/inactivo) se maneja con los botones 🚫 / ↩️ de la tabla, no desde acá — así queda
+              registrada la fecha del cambio.
+            </p>
+          )}
           {error && (
             <div className="col-span-2 rounded-md bg-[var(--rojo-clr)] px-3 py-2 text-xs text-[var(--rojo)]">{error}</div>
           )}
@@ -290,6 +331,65 @@ function JugadorModal({ jugador, onClose }: { jugador: Jugador | null; onClose: 
   );
 }
 
+function BajaReactivarModal({
+  jugador,
+  modo,
+  onClose,
+}: {
+  jugador: Jugador;
+  modo: "baja" | "reactivar";
+  onClose: () => void;
+}) {
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirmar() {
+    setSaving(true);
+    setError(null);
+    const res = modo === "baja" ? await darDeBaja(jugador.id, fecha) : await reactivar(jugador.id, fecha);
+    if (res?.error) {
+      setError(res.error);
+      setSaving(false);
+      return;
+    }
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-xl bg-white shadow-2xl">
+        <div
+          className="rounded-t-xl px-4 py-3 text-white"
+          style={{ background: modo === "baja" ? "var(--rojo)" : "var(--verde)" }}
+        >
+          <h2 className="text-[15px] font-bold">{modo === "baja" ? "Dar de baja" : "Reactivar"} a {jugador.nombre}</h2>
+        </div>
+        <div className="space-y-3 p-4">
+          <p className="text-[13px] text-neutral-600">
+            {modo === "baja"
+              ? "Desde esta fecha en adelante, los partidos sin cobro registrado no le van a generar deuda automática. Los cobros ya cargados se siguen mostrando igual."
+              : "Desde esta fecha en adelante vuelve a generar deuda automática en los partidos sin cobro registrado."}
+          </p>
+          <div>
+            <span className="label">Fecha</span>
+            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="input mt-1" />
+          </div>
+          {error && <div className="rounded-md bg-[var(--rojo-clr)] px-3 py-2 text-xs text-[var(--rojo)]">{error}</div>}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-[var(--borde)] px-4 py-3">
+          <button className="btn btn-ghost" onClick={onClose}>
+            Cancelar
+          </button>
+          <button className="btn btn-primary" disabled={saving} onClick={confirmar}>
+            {saving ? "Guardando…" : "Confirmar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Field({
   label,
   children,
@@ -303,6 +403,167 @@ function Field({
     <div className={`flex flex-col gap-1 ${className}`}>
       <span className="label">{label}</span>
       {children}
+    </div>
+  );
+}
+
+// ════════════════════════════ Ficha lateral (Mejora 6) ════════════════════════════
+
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/);
+  return (partes[0]?.[0] ?? "") + (partes[1]?.[0] ?? "");
+}
+
+function FichaJugador({
+  jugador,
+  deuda,
+  partidos,
+  cobros,
+  gastos3t,
+  activaciones,
+  montoGlobal,
+  onClose,
+}: {
+  jugador: Jugador;
+  deuda: number;
+  partidos: Partido[];
+  cobros: Cobro[];
+  gastos3t: Gasto3T[];
+  activaciones: Activacion[];
+  montoGlobal: number;
+  onClose: () => void;
+}) {
+  const locales = useMemo(() => partidosLocales(partidos), [partidos]);
+  const comprasMap = useMemo(() => comprasMontoMap(gastos3t), [gastos3t]);
+  const cobrosByPartido = useMemo(
+    () => new Map(cobros.filter((c) => c.jugador_id === jugador.id).map((c) => [c.partido_id, c])),
+    [cobros, jugador.id],
+  );
+  const conRegistros = useMemo(
+    () =>
+      new Set<string>([
+        ...cobros.map((c) => c.partido_id),
+        ...gastos3t.filter((g) => g.es_jugador_plantel).map((g) => g.partido_id),
+      ]),
+    [cobros, gastos3t],
+  );
+
+  const filas = locales.map((p) => {
+    const m = montoPartido(p, montoGlobal);
+    const e = estadoCeldaJugador({
+      cobro: cobrosByPartido.get(p.id),
+      comprasMonto: comprasMap.get(`${jugador.nombre}:${p.id}`) ?? 0,
+      monto3T: m,
+      partido: p,
+      partidoConRegistros: conRegistros.has(p.id),
+      activoEnFecha: activoEnFecha(activaciones, jugador.id, p.fecha),
+    });
+    return { p, e };
+  });
+
+  const relevantes = filas.filter(({ e }) => e.estado !== "pendiente");
+  const jugados = relevantes.length;
+  const pagados = relevantes.filter(({ e }) => ["saldado", "compra", "acordado"].includes(e.estado)).length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+      <div
+        className="flex h-full w-full max-w-[420px] flex-col overflow-y-auto bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 text-white" style={{ background: GRUPO_META[jugador.grupo].color }}>
+          <button onClick={onClose} className="float-right opacity-70 hover:opacity-100">
+            ✕
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/20 text-[16px] font-extrabold">
+              {iniciales(jugador.nombre)}
+            </div>
+            <div>
+              <div className="text-lg font-extrabold leading-tight">{jugador.nombre}</div>
+              <div className="mt-0.5 text-[12px] opacity-85">
+                {jugador.apodo && `"${jugador.apodo}" · `}
+                {jugador.posicion || "Sin posición"}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className="badge" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>
+              {jugador.grupo}
+            </span>
+            <span className="badge" style={{ background: "rgba(255,255,255,.25)", color: "#fff" }}>
+              {jugador.activo ? "Activo" : "Inactivo"}
+            </span>
+          </div>
+        </div>
+
+        <div className="p-4">
+          <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+            <MiniStat label="Partidos jugados" value={jugados} />
+            <MiniStat label="Pagados" value={pagados} />
+            <MiniStat label="Deuda" value={deuda < 0 ? fmt(deuda) : "$0"} tone={deuda < 0 ? "rojo" : "verde"} />
+          </div>
+
+          <div
+            className="mb-4 rounded-lg p-3 text-center font-bold"
+            style={{
+              background: deuda < 0 ? "var(--rojo-clr)" : "var(--verde-clr)",
+              color: deuda < 0 ? "var(--rojo)" : "var(--verde)",
+            }}
+          >
+            {deuda < 0 ? `Deuda total ${fmt(deuda)}` : "Sin deuda — al día ✓"}
+          </div>
+
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-neutral-400">
+            Historial por partido
+          </div>
+          {filas.length === 0 ? (
+            <p className="py-6 text-center text-[13px] text-neutral-400">Sin partidos locales cargados.</p>
+          ) : (
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Rival</th>
+                  <th>Estado</th>
+                  <th className="!text-right">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filas.map(({ p, e }) => {
+                  const meta = CELDA_META[e.estado];
+                  return (
+                    <tr key={p.id}>
+                      <td className="whitespace-nowrap font-bold text-[var(--azul)]">{fechaCorta(p.fecha)}</td>
+                      <td className="text-[12px] text-neutral-600">{p.rival}</td>
+                      <td>
+                        <span className="badge" style={{ background: meta.bg, color: meta.fg }}>
+                          {e.estado === "parcial" ? `Falta ${fmt(Math.abs(e.diff))}` : meta.label || "—"}
+                        </span>
+                      </td>
+                      <td className="!text-right font-bold">{e.monto != null ? fmt(e.monto) : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, tone }: { label: string; value: string | number; tone?: "rojo" | "verde" }) {
+  return (
+    <div className="rounded-md bg-[var(--gris)] p-2">
+      <div className="text-[10px] text-neutral-500">{label}</div>
+      <div
+        className="text-[15px] font-extrabold"
+        style={{ color: tone === "rojo" ? "var(--rojo)" : tone === "verde" ? "var(--verde)" : "var(--azul)" }}
+      >
+        {value}
+      </div>
     </div>
   );
 }

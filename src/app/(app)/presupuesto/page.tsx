@@ -1,5 +1,6 @@
 import { Topbar } from "@/components/Topbar";
 import {
+  getActivaciones,
   getCobros,
   getConfig,
   getGastos3T,
@@ -8,17 +9,18 @@ import {
   getPartidos,
 } from "@/lib/data";
 import { presupuestoPorPartido } from "@/lib/business";
-import { fmt, fechaCorta } from "@/lib/format";
+import { fmt, fmtS, fechaCorta } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function PresupuestoPage() {
-  const [partidos, jugadores, cobros, gastos3t, gastosFijos, config] = await Promise.all([
+  const [partidos, jugadores, cobros, gastos3t, gastosFijos, activaciones, config] = await Promise.all([
     getPartidos(),
     getJugadores(),
     getCobros(),
     getGastos3T(),
     getGastosFijos(),
+    getActivaciones(),
     getConfig(),
   ]);
 
@@ -29,6 +31,7 @@ export default async function PresupuestoPage() {
     gastos3t,
     gastosFijos,
     montoGlobal: config.monto_global,
+    activaciones,
   });
 
   const sum = (k: keyof (typeof filas)[number]) =>
@@ -55,6 +58,34 @@ export default async function PresupuestoPage() {
         </td>
       ))}
       <td className="px-3 py-1.5 text-right font-bold">{total === null ? "—" : fmt(total)}</td>
+    </tr>
+  );
+
+  /** Bug 1: signo y color rojo cuando el resultado da negativo. */
+  const RowSigned = ({
+    label,
+    values,
+    total,
+    className = "",
+  }: {
+    label: string;
+    values: (number | null)[];
+    total: number | null;
+    className?: string;
+  }) => (
+    <tr className={className}>
+      <td className="sticky left-0 z-10 whitespace-nowrap bg-inherit px-3 py-1.5 font-semibold">{label}</td>
+      {values.map((v, i) => (
+        <td key={i} className="px-3 py-1.5 text-right" style={{ color: v !== null && v < 0 ? "var(--rojo)" : undefined }}>
+          {v === null ? <span className="text-neutral-300">—</span> : fmtS(v)}
+        </td>
+      ))}
+      <td
+        className="px-3 py-1.5 text-right font-bold"
+        style={{ color: total !== null && total < 0 ? "var(--rojo)" : undefined }}
+      >
+        {total === null ? "—" : fmtS(total)}
+      </td>
     </tr>
   );
 
@@ -104,7 +135,7 @@ export default async function PresupuestoPage() {
                   <Row className="bg-[#FDF5F5]" label="🧃 Entretiempo" values={filas.map((f) => (f.futuro ? null : f.entretiempo))} total={sum("entretiempo")} />
                   <Row className="bg-[#FDF5F5]" label="📋 Extras" values={filas.map((f) => (f.futuro ? null : f.extras))} total={sum("extras")} />
                   <Row className="bg-[#FDF5F5] font-bold" label="Total gastos" values={filas.map((f) => (f.futuro ? null : f.totalGastos))} total={sum("totalGastos")} />
-                  <Row className="bg-[var(--amarillo)] font-extrabold" label="💰 Resultado" values={filas.map((f) => (f.futuro ? null : f.resultado))} total={sum("resultado")} />
+                  <RowSigned className="bg-[var(--amarillo)] font-extrabold" label="💰 Resultado" values={filas.map((f) => (f.futuro ? null : f.resultado))} total={sum("resultado")} />
                   <Row className="bg-[var(--rojo-clr)] font-bold" label="⚠️ Deuda pendiente" values={filas.map((f) => (f.futuro ? null : f.deuda || null))} total={sum("deuda") || null} />
                 </tbody>
               </table>

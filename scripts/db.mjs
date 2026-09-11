@@ -56,6 +56,14 @@ async function main() {
       for (const f of files) await runFile(c, path.join(dir, f));
     });
   } else if (cmd === "seed") {
+    if (process.argv[3] !== "--force") {
+      console.error(
+        "⚠️  seed.sql TRUNCA cobros / gastos_3t / gastos_fijos / caja_movimientos.\n" +
+        "   El sistema está en uso real — esto borraría datos cargados por Lautaro.\n" +
+        "   Si estás seguro, corré: node scripts/db.mjs seed --force",
+      );
+      process.exit(1);
+    }
     await withClient((c) => runFile(c, path.join(ROOT, "supabase", "seed.sql")));
   } else if (cmd === "sql") {
     const q = process.argv[3];

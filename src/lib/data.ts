@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient, hasSupabaseEnv } from "./supabase/server";
 import type {
+  Activacion,
   CajaMovimiento,
   Cobro,
   Config,
@@ -73,6 +74,13 @@ export async function getGastosFijos(): Promise<GastoFijo[]> {
   const sb = createClient();
   const { data } = await sb.from("gastos_fijos").select("*");
   return (data as GastoFijo[]) ?? [];
+}
+
+export async function getActivaciones(): Promise<Activacion[]> {
+  if (!hasSupabaseEnv()) return [];
+  const sb = createClient();
+  const { data } = await sb.from("jugador_activaciones").select("*");
+  return (data as Activacion[]) ?? [];
 }
 
 export async function getCajaMovimientos(): Promise<CajaMovimiento[]> {

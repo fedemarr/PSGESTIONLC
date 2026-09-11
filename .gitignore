@@ -34,15 +34,18 @@ yarn-error.log*
 # scratch
 /scratchpad
 
-# --- Datos reales del club: NO subir a GitHub (repo público) ---
+# --- Datos reales del club / prototipos de referencia: NO subir a GitHub (repo público) ---
 # Se comparten aparte. El seed se regenera local con: npm run seed:gen
 *.xlsx
 /supabase/seed.sql
 /docs/
 /TESORERIA_CEDROS_SPEC.md
 /FEDE_CAJA_HISTORICA.md
+/FEDE_CORRECCIONES.md
+/FEDE_*.md
 /tesoreria_cedros.html
 /modulo_*.html
+/modal_*.html
 
 .vercel
 .env*

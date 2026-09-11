@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Topbar } from "@/components/Topbar";
 import {
+  getActivaciones,
   getCajaMovimientos,
   getCobros,
   getConfig,
@@ -14,11 +15,12 @@ import { fmt, fmtS, fmtFecha, fechaCorta } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function InicioPage() {
-  const [jugadores, partidos, cobros, gastos3t, config, movs] = await Promise.all([
+  const [jugadores, partidos, cobros, gastos3t, activaciones, config, movs] = await Promise.all([
     getJugadores(),
     getPartidos(),
     getCobros(),
     getGastos3T(),
+    getActivaciones(),
     getConfig(),
     getCajaMovimientos(),
   ]);
@@ -37,7 +39,7 @@ export default async function InicioPage() {
     .filter((j) => j.activo)
     .map((j) => ({
       j,
-      deuda: deudaJugador(j, partidos, cobrosByJugPartido, config.monto_global, partidosConRegistros, comprasMap),
+      deuda: deudaJugador(j, partidos, cobrosByJugPartido, config.monto_global, partidosConRegistros, comprasMap, activaciones),
     }))
     .filter((x) => x.deuda < 0)
     .sort((a, b) => a.deuda - b.deuda);

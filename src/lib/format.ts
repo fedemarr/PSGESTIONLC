@@ -1,4 +1,5 @@
 import type { Grupo3T } from "./types";
+import type { EstadoCelda } from "./business";
 
 /** $12.345 — siempre valor absoluto (para montos que no llevan signo). */
 export function fmt(n: number | null | undefined): string {
@@ -46,6 +47,17 @@ export const GRUPO_META: Record<Grupo3T, { color: string; bg: string; short: str
 export function grupoColor(g: Grupo3T | null | undefined): string {
   return g ? GRUPO_META[g].color : "#1F4E79";
 }
+
+/** Estilo visual de cada estado de celda de Cobros (grilla, drawer, modal). */
+export const CELDA_META: Record<EstadoCelda, { bg: string; fg: string; label: string; border?: string }> = {
+  saldado: { bg: "#D5F5E3", fg: "#1E8449", label: "Saldado" },
+  debe: { bg: "#FDECEA", fg: "#C00000", label: "Debe" },
+  parcial: { bg: "#FFF2CC", fg: "#856404", label: "Parcial" },
+  compra: { bg: "#D6EAF8", fg: "#1A5276", label: "Compra" },
+  acordado: { bg: "#D1FAE5", fg: "#065F46", label: "Acordado", border: "#6EE7B7" },
+  ausente: { bg: "#F5F5F5", fg: "#9aa0a6", label: "Ausente" },
+  pendiente: { bg: "#FFFFFF", fg: "#cfcfcf", label: "" },
+};
 
 /** Estado del partido según su fecha. */
 export function estadoPartido(p: { fecha: string; jugado: boolean }): "hoy" | "jugado" | "proximo" {

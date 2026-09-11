@@ -11,17 +11,30 @@ export async function guardarCobro(jugadorId: string, partidoId: string, formDat
   const presencia = String(formData.get("presencia") ?? "jugo") as Presencia;
   const forma = String(formData.get("forma") ?? "MP") as FormaPago;
   const obs = String(formData.get("obs") ?? "").trim();
+  const acordado = formData.get("acordado") === "true";
   const monto = presencia === "ausente" ? 0 : Number(formData.get("monto") ?? 0);
 
-  if (presencia !== "ausente" && monto <= 0) {
-    return { error: "Ingresá el monto pagado (o marcá Ausente)." };
+  // Se puede guardar si: está ausente, es un monto acordado, hay un monto real,
+  // o simplemente se está dejando una observación sin tocar el pago.
+  const puedeGuardar = presencia === "ausente" || acordado || monto > 0 || obs.length > 0;
+  if (!puedeGuardar) {
+    return { error: "Ingresá el monto, marcá acordado/ausente, o dejá una observación." };
   }
 
   const sb = createClient();
   const { error } = await sb
     .from("cobros")
     .upsert(
-      { jugador_id: jugadorId, partido_id: partidoId, presencia, monto, forma, es_compra: false, obs },
+      {
+        jugador_id: jugadorId,
+        partido_id: partidoId,
+        presencia,
+        monto,
+        forma,
+        es_compra: false,
+        monto_acordado: presencia === "ausente" ? false : acordado,
+        obs,
+      },
       { onConflict: "jugador_id,partido_id" },
     );
   if (error) return { error: error.message };
